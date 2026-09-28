@@ -9,11 +9,15 @@ import {
   liveChatMessages,
 } from "@/db/schema";
 import { sanitizeInput } from "@/lib/security";
+import { verifyAdminRequest } from "@/lib/admin-auth";
 import { desc, eq, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = verifyAdminRequest(req);
+  if (authError) return authError;
+
   try {
     const allOrders = await db
       .select()
@@ -26,7 +30,8 @@ export async function GET() {
         totalRevenue: sql<string>`coalesce(sum(${orders.amount}), 0)`,
         totalOrders: sql<number>`count(*)`,
       })
-      .from(orders);
+      .from(orders)
+      .where(eq(orders.status, "completed"));
 
     const leadsCount = await db
       .select({ count: sql<number>`count(*)` })
@@ -63,6 +68,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = verifyAdminRequest(req);
+  if (authError) return authError;
+
   try {
     const body = await req.json();
     const { action } = body;

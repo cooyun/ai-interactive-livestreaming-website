@@ -6,7 +6,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:push": "drizzle-kit push",
+    "db:seed": "npx --yes tsx src/db/seed.ts"
   },
   "dependencies": {
     "@types/canvas-confetti": "^1.9.0",

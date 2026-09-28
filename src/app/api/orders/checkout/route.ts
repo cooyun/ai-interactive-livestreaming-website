@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders, products, liveChatMessages, affiliates } from "@/db/schema";
+import { orders, products, liveChatMessages } from "@/db/schema";
 import { checkRateLimit, sanitizeInput, isValidEmail, generateLicenseKey } from "@/lib/security";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === "production" && process.env.DEMO_CHECKOUT_ENABLED !== "true") {
+      return NextResponse.json(
+        { success: false, error: "Demo checkout is disabled in production." },
+        { status: 503 }
+      );
+    }
+
     const forwarded = req.headers.get("x-forwarded-for");
     const ip = forwarded ? forwarded.split(",")[0].trim() : "127.0.0.1";
 
@@ -69,40 +76,13 @@ export async function POST(req: NextRequest) {
         productName: product.title,
         amount: product.price,
         currency: "USD",
-        status: "completed",
+        status: "demo",
         affiliateCode: sanitizedAffiliate,
         licenseKey,
       })
       .returning();
 
-    // Update product sales & decrement stock
-    await db
-      .update(products)
-      .set({
-        salesCount: sql`${products.salesCount} + 1`,
-        stock: sql`GREATEST(1, ${products.stock} - 1)`,
-      })
-      .where(eq(products.id, product.id));
-
-    // Handle affiliate commission attribution if valid affiliate code
-    if (sanitizedAffiliate) {
-      try {
-        const commRate = 0.30; // 30% commission
-        const commEarned = (Number(product.price) * commRate).toFixed(2);
-        await db
-          .update(affiliates)
-          .set({
-            totalConversions: sql`${affiliates.totalConversions} + 1`,
-            totalEarnings: sql`${affiliates.totalEarnings} + ${commEarned}`,
-          })
-          .where(eq(affiliates.code, sanitizedAffiliate));
-      } catch (affErr) {
-        console.error("Affiliate update error:", affErr);
-      }
-    }
-
-    // Broadcast toast message to live chat for social proof and excitement
-    const buyerLocation = country || "USA";
+    const buyerLocation = sanitizeInput(typeof country === "string" ? country : "USA", 50);
     const maskedName =
       sanitizedName.length > 2
         ? `${sanitizedName[0]}***${sanitizedName[sanitizedName.length - 1]}`
@@ -113,12 +93,12 @@ export async function POST(req: NextRequest) {
         senderName: "AI Sales Engine",
         senderAvatar: "⚡",
         senderRole: "system",
-        message: `🎉 Verified Purchase: ${maskedName} from ${buyerLocation} just unlocked [${product.title}]!`,
+        message: `Demo checkout: ${maskedName} from ${buyerLocation} generated a preview license for [${product.title}].`,
         messageType: "order_toast",
         isAiResponse: false,
       });
     } catch (e) {
-      console.error("Failed to insert live chat purchase toast:", e);
+      console.error("Failed to insert demo checkout chat message:", e);
     }
 
     return NextResponse.json({
@@ -132,7 +112,7 @@ export async function POST(req: NextRequest) {
         customerName: newOrder.customerName,
         downloadUrl: "#access-portal",
       },
-      message: "Order completed successfully! Instant access details generated.",
+      message: "Demo order generated. No payment was taken and no email was sent.",
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Order checkout failed";

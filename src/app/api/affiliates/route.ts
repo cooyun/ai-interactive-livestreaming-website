@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomInt } from "node:crypto";
 import { db } from "@/db";
 import { affiliates } from "@/db/schema";
 import { sanitizeInput, isValidEmail } from "@/lib/security";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
+
+function toPublicAffiliate(affiliate: typeof affiliates.$inferSelect) {
+  const { email: _email, ...publicAffiliate } = affiliate;
+  return publicAffiliate;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,9 +45,18 @@ export async function POST(req: NextRequest) {
     if (existing) {
       return NextResponse.json({
         success: true,
-        affiliate: existing,
+        affiliate: toPublicAffiliate(existing),
         message: "Welcome back! Here is your active affiliate tracking link.",
       });
+    }
+
+    const [codeOwner] = await db
+      .select({ id: affiliates.id })
+      .from(affiliates)
+      .where(eq(affiliates.code, cleanCode))
+      .limit(1);
+    if (codeOwner) {
+      cleanCode = `REF${randomInt(100000, 1000000)}`;
     }
 
     // Insert new affiliate
@@ -60,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      affiliate: newAffiliate,
+      affiliate: toPublicAffiliate(newAffiliate),
       message: "Affiliate account created successfully! You now earn 30% on all referred purchases.",
     });
   } catch (err: unknown) {
@@ -88,7 +103,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Affiliate not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, affiliate: aff });
+    return NextResponse.json({ success: true, affiliate: toPublicAffiliate(aff) });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Failed to fetch affiliate";
     return NextResponse.json({ success: false, error: errorMsg }, { status: 500 });

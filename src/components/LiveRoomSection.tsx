@@ -91,6 +91,7 @@ export function LiveRoomSection({
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const effectIdRef = useRef(0);
 
   // Fallback demo product if none provided
   const activeDeal: Product = featuredProduct || {
@@ -181,10 +182,11 @@ export function LiveRoomSection({
   // Trigger floating reaction
   const sendReaction = (icon: string) => {
     setLikesCount((prev) => prev + 1);
+    const id = ++effectIdRef.current;
     const newReaction = {
-      id: Date.now() + Math.random(),
+      id,
       icon,
-      left: 65 + Math.floor(Math.random() * 25),
+      left: 65 + (id * 7) % 25,
     };
     setFloatingReactions((prev) => [...prev.slice(-15), newReaction]);
 
@@ -196,10 +198,11 @@ export function LiveRoomSection({
   // Add barrage banner
   const addBarrage = (text: string, color = "#38bdf8") => {
     if (!showDanmaku) return;
+    const id = ++effectIdRef.current;
     const newBarrage = {
-      id: Date.now() + Math.random(),
+      id,
       text,
-      top: 15 + Math.floor(Math.random() * 55),
+      top: 15 + (id * 13) % 55,
       color,
     };
     setBarrageList((prev) => [...prev.slice(-8), newBarrage]);
@@ -386,8 +389,8 @@ export function LiveRoomSection({
               <Image
                 src={
                   activeHost === "nova"
-                    ? "/images/ai-streamer-avatar.jpg"
-                    : "/images/ai-streamer-avatar-alex.jpg"
+                    ? "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                    : "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=1200"
                 }
                 alt={activeHost === "nova" ? "Nova AI Host" : "Alex AI Host"}
                 fill

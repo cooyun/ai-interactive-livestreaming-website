@@ -27,7 +27,7 @@ export async function seedDatabase() {
         stock: 12,
         salesCount: 842,
         isFeaturedInLive: true,
-        imageUrl: "/images/ai-streamer-avatar.jpg"
+        imageUrl: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1200"
       },
       {
         title: "StreamAgent Pro™ - Turnkey 24/7 AI Live Streamer Kit",
@@ -46,7 +46,7 @@ export async function seedDatabase() {
         stock: 6,
         salesCount: 319,
         isFeaturedInLive: true,
-        imageUrl: "/images/ai-studio-bg.jpg"
+        imageUrl: "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200"
       },
       {
         title: "AI Global Growth VIP Architecture Mentorship",
@@ -65,7 +65,7 @@ export async function seedDatabase() {
         stock: 3,
         salesCount: 87,
         isFeaturedInLive: false,
-        imageUrl: "/images/ai-streamer-avatar-alex.jpg"
+        imageUrl: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=1200"
       },
       {
         title: "Zero-to-$10K Global Domain Monetization Playbook",
@@ -84,7 +84,7 @@ export async function seedDatabase() {
         stock: 150,
         salesCount: 1420,
         isFeaturedInLive: false,
-        imageUrl: "/images/ai-streamer-avatar.jpg"
+        imageUrl: "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200"
       }
     ]);
     console.log("Products seeded successfully.");

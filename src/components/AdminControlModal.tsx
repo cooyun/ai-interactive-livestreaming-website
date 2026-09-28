@@ -40,6 +40,11 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [knowledgeBase, setKnowledgeBase] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [adminToken, setAdminToken] = useState("");
+  const [adminTokenInput, setAdminTokenInput] = useState("");
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState("");
 
   // Forms state
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -59,11 +64,24 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
     setTimeout(() => setToastMsg(""), 3000);
   };
 
-  const fetchAdminData = async () => {
-    try {
-      const res = await fetch("/api/admin");
-      const data = await res.json();
-      if (data.success) {
+  useEffect(() => {
+    if (!isOpen || !adminToken) return;
+
+    const controller = new AbortController();
+    fetch("/api/admin", {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${adminToken}` },
+    })
+      .then(async (res) => ({ ok: res.ok, data: await res.json() }))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          setIsAdminAuthenticated(false);
+          setAdminAuthError(data.error || (isZh ? "令牌无效" : "Invalid admin token"));
+          return;
+        }
+        if (!data.success) return;
+        setIsAdminAuthenticated(true);
+        setAdminAuthError("");
         if (data.metrics) setMetrics(data.metrics);
         if (data.settings) {
           setStreamSettings({
@@ -75,17 +93,15 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
         }
         if (data.recentOrders) setRecentOrders(data.recentOrders);
         if (data.knowledgeBase) setKnowledgeBase(data.knowledgeBase);
-      }
-    } catch (err) {
-      console.error("Admin data fetch error:", err);
-    }
-  };
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name !== "AbortError") {
+          console.error("Admin data fetch error:", err);
+        }
+      });
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAdminData();
-    }
-  }, [isOpen]);
+    return () => controller.abort();
+  }, [isOpen, adminToken, refreshKey, isZh]);
 
   if (!isOpen) return null;
 
@@ -94,7 +110,10 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
     try {
       const res = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
         body: JSON.stringify({
           action: "update_stream",
           ...streamSettings,
@@ -117,7 +136,10 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
     try {
       const res = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
         body: JSON.stringify({
           action: "broadcast_message",
           message: broadcastMessage,
@@ -144,7 +166,10 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
     try {
       const res = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
         body: JSON.stringify({
           action: "add_knowledge",
           questionPattern: newQuestion,
@@ -159,7 +184,7 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
         setNewQuestion("");
         setNewAnswer("");
         setNewKeywords("");
-        fetchAdminData();
+        setRefreshKey((current) => current + 1);
       }
     } catch (err) {
       console.error(err);
@@ -201,6 +226,38 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
           </button>
         </div>
 
+        {!isAdminAuthenticated ? (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setAdminAuthError("");
+              setAdminToken(adminTokenInput);
+              setRefreshKey((current) => current + 1);
+            }}
+            className="space-y-4 py-8"
+          >
+            <label className="block text-sm font-semibold text-white" htmlFor="admin-token">
+              {isZh ? "管理员访问令牌" : "Admin access token"}
+            </label>
+            <input
+              id="admin-token"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={adminTokenInput}
+              onChange={(event) => setAdminTokenInput(event.target.value)}
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-3 text-sm text-white"
+            />
+            {adminAuthError && <p className="text-sm text-rose-400">{adminAuthError}</p>}
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500"
+            >
+              {isZh ? "验证并进入控制台" : "Verify and open console"}
+            </button>
+          </form>
+        ) : (
+          <>
         {/* Toast Notification */}
         {toastMsg && (
           <div className="my-2 p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
@@ -464,7 +521,7 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
           {activeTab === "orders" && (
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                {isZh ? "最新成交订单记录" : "Recent Verified Orders"}
+                {isZh ? "最近订单记录" : "Recent Orders"}
               </h4>
               {recentOrders.length === 0 ? (
                 <p className="text-xs text-slate-500 py-6 text-center">
@@ -500,6 +557,8 @@ export function AdminControlModal({ isOpen, onClose, currentLang }: AdminControl
             </div>
           )}
         </div>
+          </>
+        )}
 
       </div>
     </div>

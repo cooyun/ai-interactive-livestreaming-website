@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     siteName: "GlobalOmni AI",
     images: [
       {
-        url: "/images/ai-streamer-avatar.jpg",
+        url: "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
         width: 1200,
         height: 630,
         alt: "24/7 AI Live Streamer Nova",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     title: "GlobalOmni AI™ - 24/7 AI Live Stream & Traffic Engine",
     description:
       "Autonomous 24/7 AI live streaming, viral traffic tools & instant digital monetization for global domains.",
-    images: ["/images/ai-streamer-avatar.jpg"],
+    images: ["https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200"],
   },
 };
 

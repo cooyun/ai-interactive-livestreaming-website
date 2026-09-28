@@ -7,7 +7,6 @@ import {
   X,
   ShieldCheck,
   CheckCircle2,
-  Lock,
   CreditCard,
   Sparkles,
   Download,
@@ -65,7 +64,7 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
         setOrderComplete(data.order);
         triggerConfetti();
       } else {
-        alert(data.error || "Payment processing failed. Please try again.");
+        alert(data.error || (isZh ? "演示订单创建失败，请重试。" : "Could not create demo order. Please try again."));
       }
     } catch (err) {
       console.error("Checkout error:", err);
@@ -112,12 +111,12 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
 
             <div>
               <h3 className="text-2xl font-black text-white">
-                {isZh ? "🎉 恭喜！购买成功" : "🎉 Order Confirmed!"}
+                {isZh ? "🎉 演示订单已生成" : "🎉 Demo Order Created"}
               </h3>
               <p className="text-xs text-slate-400 mt-1">
                 {isZh
-                  ? "授权许可凭证已同步发送至您的邮箱，并已在直播间弹幕播报！"
-                  : "Your license key and download portal access have been delivered to your email."}
+                  ? "这是演示订单，没有扣款，也不会发送邮件。预览授权码仅在此页面显示。"
+                  : "No payment was taken and no email was sent. This preview license is shown here only."}
               </p>
             </div>
 
@@ -134,13 +133,13 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
                 </span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>{isZh ? "支付金额:" : "Paid:"}</span>
+                <span>{isZh ? "演示金额:" : "Demo amount:"}</span>
                 <span className="text-emerald-400 font-bold">${orderComplete.amount} USD</span>
               </div>
 
               <div className="pt-2 border-t border-slate-800">
                 <span className="text-[11px] text-slate-400 uppercase font-sans font-bold block mb-1">
-                  {isZh ? "专属激活授权密钥 (License Key):" : "Official License Key:"}
+                  {isZh ? "预览授权码:" : "Preview License Key:"}
                 </span>
                 <div className="flex items-center justify-between bg-slate-900 border border-indigo-500/40 rounded-xl p-2.5">
                   <span className="text-sm font-bold text-indigo-300 font-mono tracking-wider">
@@ -169,11 +168,10 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
           <div>
             <div className="mb-6">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
-                <Lock className="w-3 h-3" />
-                <span>256-Bit SSL Encrypted Checkout</span>
+                <span>{isZh ? "演示结账 · 不会扣款" : "DEMO CHECKOUT · NO PAYMENT"}</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-white">
-                {isZh ? "极速激活与安全结算" : "Instant Access Checkout"}
+                {isZh ? "演示订单预览" : "Demo Checkout Preview"}
               </h3>
               <p className="text-xs text-slate-400 mt-1 line-clamp-1">{product.title}</p>
             </div>
@@ -195,7 +193,7 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
                   {isZh ? "发货方式" : "Delivery"}
                 </span>
                 <span className="text-xs text-cyan-400 font-bold">
-                  {isZh ? "⚡ 自动即时发货" : "⚡ Instant License"}
+                  {isZh ? "⚡ 预览授权码" : "⚡ Preview License"}
                 </span>
               </div>
             </div>
@@ -217,7 +215,7 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">
-                  {isZh ? "电子邮箱 (用于接收授权与下载链接)" : "Email Address (For instant license delivery)"}
+                  {isZh ? "联系邮箱（仅用于演示记录，不会发送邮件）" : "Email (demo record only; no email is sent)"}
                 </label>
                 <input
                   type="email"
@@ -272,7 +270,9 @@ export function CheckoutModal({ product, isOpen, onClose, currentLang }: Checkou
                 {isSubmitting ? (
                   <>
                     <Sparkles className="w-4 h-4 animate-spin" />
-                    <span>{isZh ? "正在安全授权出单..." : "Processing Secure Payment..."}</span>
+                    <span>{isZh ? "正在生成演示订单..." : "Creating demo order..."}</span>
+                                      <span>{isZh ? "正在生成演示订单..." : "Creating demo order..."}</span>
+                                      <span>{isZh ? "生成演示订单" : "Create Demo Order"}</span>
                   </>
                 ) : (
                   <>

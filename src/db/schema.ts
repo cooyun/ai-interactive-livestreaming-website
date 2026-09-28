@@ -13,7 +13,7 @@ export const products = pgTable("products", {
   stock: integer("stock").default(50),
   salesCount: integer("sales_count").default(0),
   isFeaturedInLive: boolean("is_featured_in_live").default(false),
-  imageUrl: text("imageUrl").default("/images/ai-streamer-avatar.jpg"),
+  imageUrl: text("imageUrl").default("https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1200"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
