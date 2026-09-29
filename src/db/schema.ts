@@ -20,6 +20,8 @@ export const products = pgTable("products", {
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   orderNumber: varchar("order_number", { length: 64 }).notNull().unique(),
+  paypalOrderId: varchar("paypal_order_id", { length: 128 }).unique(),
+  fulfillmentTokenHash: varchar("fulfillment_token_hash", { length: 64 }),
   customerEmail: varchar("customer_email", { length: 255 }).notNull(),
   customerName: varchar("customer_name", { length: 255 }).notNull(),
   productId: integer("product_id").references(() => products.id),

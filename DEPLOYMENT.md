@@ -1,8 +1,10 @@
 # 部署与运维
 
-本文使用 Render 免费 Web Service 运行 Next.js 服务端，并使用 Neon 免费 PostgreSQL。这个项目包含动态 API 和 `pg` 数据库连接，不能只作为静态网页部署到 Cloudflare Pages。Cloudflare Workers 需要额外接入 OpenNext 与 Hyperdrive，本仓库目前没有配置该运行适配器。
+本文说明真实生产环境的部署路径。这个项目包含动态 API、数据库连接、AI 访问、PayPal 订单创建与 webhook，需要部署到支持 Node.js/Next.js 服务器运行的环境，而不能仅作为静态站点部署到 Cloudflare Pages 或纯前端托管。
 
-免费套餐的地域、配额、休眠策略及商业用途条款可能调整；部署前请核对服务商当前条款。Render 免费服务空闲时会休眠，首次唤醒可能需要等待，适合演示和低流量项目，不适合要求持续在线的生产业务。
+推荐路径：Render Web Service + Neon PostgreSQL。也可以使用 Vercel / Railway / Fly.io 等支持 Next.js 的托管平台，但必须配置环境变量、数据库和 webhook。静态托管平台不能直接承载本项目的真实交易与后台逻辑。
+
+免费套餐的地域、配额、休眠策略及商业用途条款可能调整；部署前请核对服务商当前条款。Render 免费服务空闲时会休眠，首次唤醒可能需要等待，适合低流量项目，不适合要求 24/7 生产在线的交易业务。
 
 ## 项目要求
 
@@ -76,12 +78,50 @@ Render 环境变量的修改需要触发重新部署才能确保所有实例使�
 - 先用非生产数据库验证 `db:push` 和 seed；为生产数据设置备份并限制数据库网络访问。
 - 监控 Render 日志、Neon 连接数、存储与免费额度。免费实例休眠后第一次请求较慢属于套餐特性。
 
-## 结账限制
+## 真正生产环境要求
 
-当前结账是演示流程，不接入 Stripe、PayPal 或其他支付网关，也不发送邮件。它只创建 `demo` 状态订单和预览许可证；生产环境默认关闭该 API。不要为了接受真实订单而设置 `DEMO_CHECKOUT_ENABLED=true`，这只会开放模拟下单。真正收款前必须实现支付服务端会话创建、签名验证的支付回调、幂等订单状态更新，以及付款成功后才发放许可证/库存/佣金的流程。
+真实生产环境至少需要这些配置：
+
+- `DATABASE_URL`：PostgreSQL 连接串
+- `ADMIN_API_TOKEN`：管理员 Bearer 令牌，至少 32 字节随机字符串
+- `SITE_URL`：正式域名，如 `https://example.com`
+- `CHECKOUT_MODE=paypal`：启用真实 PayPal 结账
+- `PAYPAL_CLIENT_ID` 与 `PAYPAL_SECRET`：PayPal 应用凭据
+- `PAYPAL_MODE=live`：生产环境使用 live 模式
+- `PAYPAL_WEBHOOK_SECRET`：验证 PayPal webhook 签名
+- `AI_API_KEY` / `AI_API_BASE_URL` / `AI_MODEL`：真实 AI provider 配置
+- `AFFILIATE_COMMISSION_RATE`：分销佣金比例，如 `30`
+
+在未配置这些变量时，系统应保持安全失败，不要接受真实交易。
+
+## PayPal 与订单流程
+
+真实生产模式应遵循：
+
+1. 前端提交订单创建请求
+2. 服务端验证用户信息和商品
+3. 服务端调用 PayPal 创建订单
+4. 返回前端支付链接或订单 ID
+5. 用户支付成功后，PayPal 通过 webhook 发送事件
+6. 服务端校验 signature 与订单幂等性
+7. 成功后更新订单状态、发放许可证、发放分佣、发送通知
+
+当前仓库已增加 PayPal 创建订单接口、webhook 接口、订单状态更新与履约逻辑骨架；但只有在你配置 PayPal 凭据、域名和 webhook 后，才能真正进入在线交易模式。不要把 `CHECKOUT_MODE=demo` 留在生产环境。
+
+## 安全落地说明
+
+真实 webhook 处理必须：
+
+- 先校验 `paypal-transmission-*` 头和签名
+- 校验 `event_type` 与订单号
+- 幂等处理重复请求
+- 只在成功支付事件触发发放逻辑
+- 保持 `orderNumber` 与 `customerEmail` 受控，不允许任意覆盖
+
+当前代码已使用订单号与签名基础校验结构；部署时需绑定真实 PayPal webhook 才能实现 `pending` 到 `completed` 的自动发放。
 
 ## Cloudflare 与其他平台
 
-Cloudflare Pages 的静态导出无法运行本项目的数据库 API。Cloudflare Workers 可通过 OpenNext 运行 Next.js，并使用 Hyperdrive 连接 PostgreSQL，但需要增加 Worker 适配配置和绑定；本仓库当前没有这部分配置，因此不能把现有项目直接部署成纯静态 Cloudflare Pages 站点。
+Cloudflare Pages 的静态导出无法运行本项目的数据库 API、后台认证和真实 PayPal webhook。Cloudflare Workers 可通过 OpenNext 运行 Next.js，并使用 Hyperdrive 连接 PostgreSQL，但需要额外适配配置和绑定；本仓库当前没有生产级 worker 配置。
 
-Render + Neon 是本仓库提供配置文件和逐步流程的免费方案。Vercel 也能运行 Next.js 与 API，但 Hobby 免费套餐对商业用途有限制；本项目包含商品和结账界面，使用前需核对 Vercel 最新的计划条款。任何免费方案都可能调整额度、休眠规则或使用限制。
+Render + Neon 是推荐的免费/低成本生产入口。Vercel 也能运行 Next.js 与 API，但需检查是否满足商业用途要求，并且必须为数据库、支付回调和 webhook 配置专用环境变量。任何免费方案都可能调整额度、休眠规则或使用限制。

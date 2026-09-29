@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { orders, products, liveChatMessages } from "@/db/schema";
+import { createPaypalOrder, isPaypalConfigured } from "@/lib/paypal";
 import { checkRateLimit, sanitizeInput, isValidEmail, generateLicenseKey } from "@/lib/security";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
+function getCheckoutMode(): "demo" | "paypal" | "disabled" {
+  const mode = (process.env.CHECKOUT_MODE || "demo").toLowerCase();
+  if (mode === "paypal") return "paypal";
+  if (mode === "disabled") return "disabled";
+  return "demo";
+}
+
 export async function POST(req: NextRequest) {
   try {
-    if (process.env.NODE_ENV === "production" && process.env.DEMO_CHECKOUT_ENABLED !== "true") {
+    const checkoutMode = getCheckoutMode();
+
+    if (checkoutMode === "disabled") {
       return NextResponse.json(
-        { success: false, error: "Demo checkout is disabled in production." },
+        { success: false, error: "Checkout is disabled on this deployment." },
+        { status: 503 }
+      );
+    }
+
+    if (process.env.NODE_ENV === "production" && checkoutMode === "demo") {
+      return NextResponse.json(
+        { success: false, error: "Production checkout requires CHECKOUT_MODE=paypal and valid PayPal credentials." },
         { status: 503 }
       );
     }
@@ -47,7 +64,6 @@ export async function POST(req: NextRequest) {
     const sanitizedEmail = customerEmail.trim().toLowerCase();
     const sanitizedAffiliate = affiliateCode ? sanitizeInput(affiliateCode, 32).toUpperCase() : null;
 
-    // Find product
     const [product] = await db
       .select()
       .from(products)
@@ -61,11 +77,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate Order Number & License
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
     const licenseKey = generateLicenseKey("LIVE");
 
-    // Insert order
+    let paymentMode = "demo";
+    let paymentDetails: Record<string, unknown> | null = null;
+
+    if (checkoutMode === "paypal") {
+      if (!isPaypalConfigured()) {
+        return NextResponse.json(
+          { success: false, error: "PayPal checkout is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_SECRET." },
+          { status: 503 }
+        );
+      }
+
+      const paypalOrder = await createPaypalOrder({
+        amount: String(product.price),
+        currency: "USD",
+        itemName: product.title,
+        orderNumber,
+      });
+
+      paymentMode = "paypal";
+      paymentDetails = paypalOrder ?? null;
+    }
+
     const [newOrder] = await db
       .insert(orders)
       .values({
@@ -76,7 +112,7 @@ export async function POST(req: NextRequest) {
         productName: product.title,
         amount: product.price,
         currency: "USD",
-        status: "demo",
+        status: paymentMode === "paypal" ? "pending" : "demo",
         affiliateCode: sanitizedAffiliate,
         licenseKey,
       })
@@ -93,16 +129,22 @@ export async function POST(req: NextRequest) {
         senderName: "AI Sales Engine",
         senderAvatar: "⚡",
         senderRole: "system",
-        message: `Demo checkout: ${maskedName} from ${buyerLocation} generated a preview license for [${product.title}].`,
+        message: `${paymentMode === "paypal" ? "Checkout request" : "Demo checkout"}: ${maskedName} from ${buyerLocation} initiated a ${paymentMode} purchase for [${product.title}].`,
         messageType: "order_toast",
         isAiResponse: false,
       });
     } catch (e) {
-      console.error("Failed to insert demo checkout chat message:", e);
+      console.error("Failed to insert checkout chat message:", e);
     }
+
+    const responseMessage =
+      paymentMode === "paypal"
+        ? "Checkout session created. Complete payment in PayPal to fulfill the order."
+        : "Demo order generated. No payment was taken and no email was sent.";
 
     return NextResponse.json({
       success: true,
+      mode: paymentMode,
       order: {
         orderNumber: newOrder.orderNumber,
         productName: newOrder.productName,
@@ -110,9 +152,10 @@ export async function POST(req: NextRequest) {
         licenseKey: newOrder.licenseKey,
         customerEmail: newOrder.customerEmail,
         customerName: newOrder.customerName,
-        downloadUrl: "#access-portal",
+        downloadUrl: paymentMode === "paypal" ? "/checkout/return" : "#access-portal",
       },
-      message: "Demo order generated. No payment was taken and no email was sent.",
+      payment: paymentDetails,
+      message: responseMessage,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Order checkout failed";

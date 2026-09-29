@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { buildSiteConfig } from "@/lib/site-config";
 import "./globals.css";
 
+const siteConfig = buildSiteConfig();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://globalomni.com"),
-  title: "GlobalOmni AI™ - 24/7 Autonomous AI Live Stream & Global Traffic Engine",
-  description:
-    "Turn your international .COM domain into a high-converting automated traffic and monetization machine. Features 24/7 interactive real-time AI live streaming, free viral AI tools, flash deals, and 30%-50% affiliate growth loops.",
+  metadataBase: siteConfig.metadataBase,
+  title: siteConfig.siteName,
+  description: siteConfig.description,
   keywords: [
     "AI live stream",
     "24/7 virtual streamer",
@@ -18,11 +20,10 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "GlobalOmni AI Architecture" }],
   openGraph: {
-    title: "GlobalOmni AI™ - 24/7 AI Live Stream & Traffic Monetization",
-    description:
-      "24/7 interactive digital human livestreaming round the clock. Ask any question in chat and grab limited flash deals.",
-    url: "https://globalomni.com",
-    siteName: "GlobalOmni AI",
+    title: siteConfig.siteName,
+    description: siteConfig.description,
+    url: siteConfig.openGraphUrl,
+    siteName: siteConfig.siteName,
     images: [
       {
         url: "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
@@ -36,9 +37,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "GlobalOmni AI™ - 24/7 AI Live Stream & Traffic Engine",
-    description:
-      "Autonomous 24/7 AI live streaming, viral traffic tools & instant digital monetization for global domains.",
+    title: siteConfig.siteName,
+    description: siteConfig.description,
     images: ["https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200"],
   },
 };
